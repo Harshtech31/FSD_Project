@@ -2,168 +2,155 @@
 
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
-import { TripMap } from "@/components/trip-map"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useSocket } from "@/components/socket-provider"
-import { useToast } from "@/components/ui/use-toast"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, Calendar, Users, Clock } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { MapPin, Calendar, Users, ArrowLeft } from "lucide-react"
+import Link from "next/link"
 
-interface TripDetails {
+interface Trip {
   id: string
   from: string
   to: string
   date: string
   time: string
-  driver: {
-    name: string
-    avatar: string
-  }
-  vehicle: string
-  availableSeats: number
+  vehicleType: string
+  seats: number
   costPerPerson: number
-  coordinates: {
-    source: { lat: number; lng: number }
-    destination: { lat: number; lng: number }
-  }
-  participants: Array<{
+  driver: {
     id: string
     name: string
     avatar: string
-  }>
+  }
+  status: string
+  passengers: any[]
+  createdAt: string
 }
 
 export default function TripDetailsPage() {
   const params = useParams()
-  const socket = useSocket()
-  const { toast } = useToast()
-  const [trip, setTrip] = useState<TripDetails | null>(null)
+  const [trip, setTrip] = useState<Trip | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchTripDetails = async () => {
+    const fetchTrip = async () => {
       try {
+        console.log('Fetching trip with ID:', params.id)
         const response = await fetch(`http://localhost:5000/api/trips/${params.id}`)
-        if (!response.ok) throw new Error("Failed to fetch trip details")
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          console.error('Error response:', errorData)
+          throw new Error(errorData.error || "Failed to fetch trip")
+        }
+        
         const data = await response.json()
+        console.log('Received trip data:', data)
         setTrip(data)
       } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load trip details",
-          variant: "destructive",
-        })
+        console.error('Error fetching trip:', error)
+        setError(error instanceof Error ? error.message : "Failed to load trip details. Please try again later.")
       } finally {
         setLoading(false)
       }
     }
 
-    fetchTripDetails()
-  }, [params.id, toast])
-
-  const handleJoinTrip = async () => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/trips/${params.id}/join`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      })
-
-      if (!response.ok) throw new Error("Failed to join trip")
-
-      toast({
-        title: "Success",
-        description: "You've joined the trip!",
-      })
-
-      // Notify other participants
-      socket.emit("participantJoined", { tripId: params.id })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to join trip",
-        variant: "destructive",
-      })
-    }
-  }
+    fetchTrip()
+  }, [params.id])
 
   if (loading) {
-    return <div>Loading...</div>
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center text-muted-foreground">Loading trip details...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center text-destructive">{error}</div>
+        <div className="text-center mt-4">
+          <Link href="/trips" className="text-primary hover:underline">
+            Back to trips
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   if (!trip) {
-    return <div>Trip not found</div>
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center text-muted-foreground">Trip not found</div>
+        <div className="text-center mt-4">
+          <Link href="/trips" className="text-primary hover:underline">
+            Back to trips
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Avatar>
-                <AvatarImage src={trip.driver.avatar} alt={trip.driver.name} />
-                <AvatarFallback>{trip.driver.name[0]}</AvatarFallback>
-              </Avatar>
-              <div>
-                <CardTitle>{trip.driver.name}&apos;s Trip</CardTitle>
-                <Badge variant="secondary">{trip.vehicle}</Badge>
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-2xl mx-auto">
+        <Link href="/trips" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary mb-6">
+          <ArrowLeft className="w-4 h-4" />
+          Back to trips
+        </Link>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Avatar>
+                  <AvatarImage 
+                    src={trip.driver?.avatar || "/avatars/default.png"} 
+                    alt={trip.driver?.name || "Driver"} 
+                  />
+                  <AvatarFallback>
+                    {trip.driver?.name?.[0] || "D"}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <CardTitle className="text-lg">
+                    {trip.driver?.name || "Driver"}&apos;s Trip
+                  </CardTitle>
+                  <Badge variant="secondary">{trip.vehicleType}</Badge>
+                </div>
               </div>
+              <p className="font-semibold">₹{trip.costPerPerson}/person</p>
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold">₹{trip.costPerPerson}</p>
-              <p className="text-sm text-muted-foreground">per person</p>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-4">
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
               <div className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 mt-0.5 text-muted-foreground" />
                 <div>
-                  <p className="font-medium">{trip.from}</p>
-                  <p className="text-muted-foreground">to</p>
-                  <p className="font-medium">{trip.to}</p>
+                  <p className="font-medium">{trip.from} → {trip.to}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(trip.date).toLocaleDateString()} at {trip.time}
+                  </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-muted-foreground" />
-                <p>{trip.date}</p>
+
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm">{trip.seats} seats available</span>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Clock className="w-5 h-5 text-muted-foreground" />
-                <p>{trip.time}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Users className="w-5 h-5 text-muted-foreground" />
-                <p>{trip.availableSeats} seats available</p>
+
+              <div className="pt-4">
+                <Button className="w-full">Join Trip</Button>
               </div>
             </div>
-
-            <div className="space-y-4">
-              <h3 className="font-semibold">Participants</h3>
-              <div className="flex flex-wrap gap-2">
-                {trip.participants.map((participant) => (
-                  <Avatar key={participant.id} className="border-2 border-background">
-                    <AvatarImage src={participant.avatar} alt={participant.name} />
-                    <AvatarFallback>{participant.name[0]}</AvatarFallback>
-                  </Avatar>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <TripMap tripId={trip.id} source={trip.coordinates.source} destination={trip.coordinates.destination} />
-
-          <Button className="w-full" disabled={trip.availableSeats === 0} onClick={handleJoinTrip}>
-            {trip.availableSeats === 0 ? "Trip Full" : "Join Trip"}
-          </Button>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

@@ -9,18 +9,22 @@ import { MapPin, Calendar, Users } from "lucide-react"
 import Link from "next/link"
 
 interface Trip {
-  id: number
+  id: string
   from: string
   to: string
   date: string
   time: string
+  vehicleType: string
+  seats: number
+  costPerPerson: number
   driver: {
+    id: string
     name: string
     avatar: string
   }
-  vehicle: string
-  availableSeats: number
-  costPerPerson: number
+  status: string
+  passengers: any[]
+  createdAt: string
 }
 
 export function ActiveTrips() {
@@ -83,12 +87,19 @@ export function ActiveTrips() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <Avatar>
-                    <AvatarImage src={trip.driver.avatar} alt={trip.driver.name} />
-                    <AvatarFallback>{trip.driver.name[0]}</AvatarFallback>
+                    <AvatarImage 
+                      src={trip.driver?.avatar || "/avatars/default.png"} 
+                      alt={trip.driver?.name || "Driver"} 
+                    />
+                    <AvatarFallback>
+                      {trip.driver?.name?.[0] || "D"}
+                    </AvatarFallback>
                   </Avatar>
                   <div>
-                    <CardTitle className="text-lg">{trip.driver.name}&apos;s Trip</CardTitle>
-                    <Badge variant="secondary">{trip.vehicle}</Badge>
+                    <CardTitle className="text-lg">
+                      {trip.driver?.name || "Driver"}&apos;s Trip
+                    </CardTitle>
+                    <Badge variant="secondary">{trip.vehicleType}</Badge>
                   </div>
                 </div>
                 <p className="font-semibold">₹{trip.costPerPerson}/person</p>
@@ -99,24 +110,21 @@ export function ActiveTrips() {
                 <div className="flex items-start gap-3">
                   <MapPin className="w-5 h-5 mt-0.5 text-muted-foreground" />
                   <div>
-                    <p className="font-medium">{trip.from}</p>
-                    <p className="text-muted-foreground">to</p>
-                    <p className="font-medium">{trip.to}</p>
+                    <p className="font-medium">{trip.from} → {trip.to}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(trip.date).toLocaleDateString()} at {trip.time}
+                    </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Calendar className="w-5 h-5 text-muted-foreground" />
-                  <p>
-                    {trip.date} at {trip.time}
-                  </p>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">{trip.seats} seats available</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Users className="w-5 h-5 text-muted-foreground" />
-                  <p>{trip.availableSeats} seats available</p>
-                </div>
-                <Link href={`/trips/${trip.id}`}>
-                  <Button className="w-full">View Details</Button>
-                </Link>
+                <Button className="w-full" asChild>
+                  <Link href={`/trips/${trip.id}`}>View Details</Link>
+                </Button>
               </div>
             </CardContent>
           </Card>

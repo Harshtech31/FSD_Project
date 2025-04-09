@@ -34,12 +34,12 @@ export default function NewTripPage() {
         costPerPerson: formData.get("cost"),
       }
 
+      console.log("Submitting trip data:", tripData)
+
       const response = await fetch("http://localhost:5000/api/trips", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // Add your auth token here
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify(tripData),
       })
@@ -49,6 +49,7 @@ export default function NewTripPage() {
       }
 
       const data = await response.json()
+      console.log("Trip created successfully:", data)
 
       // Notify other users about new trip
       socket.emit("newTrip", data)
@@ -60,6 +61,7 @@ export default function NewTripPage() {
 
       router.push("/trips")
     } catch (error) {
+      console.error("Error creating trip:", error)
       toast({
         title: "Error",
         description: "Failed to create trip. Please try again.",
@@ -98,58 +100,33 @@ export default function NewTripPage() {
             </div>
 
             <div className="grid gap-4">
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 <Label htmlFor="from">From</Label>
-                <Input id="from" name="from" placeholder="Starting point" required />
+                <Input id="from" name="from" required />
               </div>
-
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 <Label htmlFor="to">To</Label>
-                <Input id="to" name="to" placeholder="Destination" required />
+                <Input id="to" name="to" required />
               </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 <Label htmlFor="date">Date</Label>
                 <Input id="date" name="date" type="date" required />
               </div>
-
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 <Label htmlFor="time">Time</Label>
                 <Input id="time" name="time" type="time" required />
               </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 <Label htmlFor="seats">Available Seats</Label>
-                <Select name="seats" required>
-                  <SelectTrigger id="seats">
-                    <SelectValue placeholder="Select seats" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {vehicleType === "4-wheeler" ? (
-                      <>
-                        <SelectItem value="1">1 seat</SelectItem>
-                        <SelectItem value="2">2 seats</SelectItem>
-                        <SelectItem value="3">3 seats</SelectItem>
-                        <SelectItem value="4">4 seats</SelectItem>
-                      </>
-                    ) : (
-                      <SelectItem value="1">1 seat</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
+                <Input id="seats" name="seats" type="number" min="1" required />
               </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="cost">Cost per Person (₹)</Label>
-                <Input id="cost" name="cost" type="number" placeholder="Enter amount" required />
+              <div className="space-y-2">
+                <Label htmlFor="cost">Cost per Person</Label>
+                <Input id="cost" name="cost" type="number" min="0" required />
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" disabled={loading}>
               {loading ? "Creating..." : "Create Trip"}
             </Button>
           </form>
