@@ -90,6 +90,16 @@ export function Header() {
           >
             Find Trips
           </Link>
+          <Link
+            href="/route-planner"
+            className={
+              pathname === "/route-planner"
+                ? "text-primary font-medium"
+                : "text-muted-foreground"
+            }
+          >
+            Route Planner
+          </Link>
           <Dialog>
             <DialogTrigger asChild>
               <Button
