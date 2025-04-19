@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import clientPromise from '@/lib/mongodb'
+import * as authFallback from '@/lib/auth-fallback'
 
 export async function POST(request: Request) {
   try {
@@ -15,26 +16,74 @@ export async function POST(request: Request) {
       )
     }
 
-    const client = await clientPromise
-    const db = client.db('flowroute')
-    const usersCollection = db.collection('users')
+    let user;
+    let isPasswordValid = false;
 
-    // Find user
-    const user = await usersCollection.findOne({ email })
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      )
-    }
+    try {
+      // Try to connect to MongoDB
+      const client = await clientPromise
+      const db = client.db('flowroute')
+      const usersCollection = db.collection('users')
 
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password)
-    if (!isPasswordValid) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      )
+      // Find user
+      user = await usersCollection.findOne({ email })
+      if (!user) {
+        console.log('Login failed: User not found with email:', email)
+        return NextResponse.json(
+          { error: 'Invalid credentials' },
+          { status: 401 }
+        )
+      }
+
+      // Verify password
+      isPasswordValid = await bcrypt.compare(password, user.password)
+      console.log('Password validation result:', isPasswordValid)
+      if (!isPasswordValid) {
+        console.log('Login failed: Invalid password for user:', email)
+        return NextResponse.json(
+          { error: 'Invalid credentials' },
+          { status: 401 }
+        )
+      }
+    } catch (dbError) {
+      console.error('MongoDB connection error:', dbError)
+      console.log('Falling back to development authentication')
+
+      // Use fallback authentication in development
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          // Create a test user first to ensure it exists
+          await authFallback.createTestUser()
+
+          // Verify credentials using fallback system
+          const fallbackUser = await authFallback.verifyCredentials(email, password)
+
+          if (!fallbackUser) {
+            console.log('Fallback login failed: Invalid credentials for:', email)
+            return NextResponse.json(
+              { error: 'Invalid credentials' },
+              { status: 401 }
+            )
+          }
+
+          // Use the fallback user
+          user = fallbackUser
+          isPasswordValid = true
+          console.log('Using fallback authentication for development')
+        } catch (fallbackError) {
+          console.error('Fallback authentication error:', fallbackError)
+          return NextResponse.json(
+            { error: 'Authentication error' },
+            { status: 500 }
+          )
+        }
+      } else {
+        // In production, return a database error
+        return NextResponse.json(
+          { error: 'Database connection error' },
+          { status: 500 }
+        )
+      }
     }
 
     // Create JWT token
